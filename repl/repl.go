@@ -3,10 +3,10 @@ package repl
 import (
 	"bufio"
 	"fmt"
-	"github.com/awbear/GPI/evaluator"
+	"github.com/awbear/GPI/compiler"
 	"github.com/awbear/GPI/lexer"
-	"github.com/awbear/GPI/object"
 	"github.com/awbear/GPI/parser"
+	"github.com/awbear/GPI/vm"
 	"io"
 )
 
@@ -14,7 +14,7 @@ const PROMPT = ">> "
 
 func Start(in io.Reader, out io.Writer) {
 	scanner := bufio.NewScanner(in)
-	env := object.NewEnvironment()
+	//env := object.NewEnvironment()
 	for {
 		fmt.Printf(PROMPT)
 		scanned := scanner.Scan()
@@ -30,11 +30,26 @@ func Start(in io.Reader, out io.Writer) {
 			printParserErrors(out, p.Errors())
 			continue
 		}
-		evaluated := evaluator.Eval(program, env)
-		if evaluated != nil {
-			io.WriteString(out, evaluated.Inspect())
-			io.WriteString(out, "\n")
+		//evaluated := evaluator.Eval(program, env)
+		//if evaluated != nil {
+		//	io.WriteString(out, evaluated.Inspect())
+		//	io.WriteString(out, "\n")
+		//}
+		comp := compiler.New()
+		err := comp.Compile(program)
+		if err != nil {
+			fmt.Fprintf(out, "Woops! compilation failed: \n %s\n", err)
+			continue
 		}
+		machine := vm.New(comp.Bytecode())
+		err = machine.Run()
+		if err != nil {
+			fmt.Fprintf(out, "Woops! Executing bytecode failed: \n %s\n", err)
+			continue
+		}
+		stackTop := machine.StackTop()
+		io.WriteString(out, stackTop.Inspect())
+		io.WriteString(out, "\n")
 	}
 }
 
